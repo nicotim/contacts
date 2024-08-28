@@ -1,6 +1,7 @@
 import {
   Component,
   effect,
+  inject,
   input,
   OnInit,
   signal,
@@ -12,6 +13,12 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { FilterComponent } from './filter/filter.component';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { APP_CONSTANTS } from '@shared/constant';
+import { ContactService } from '@features/contacts/contact.service';
+import { ModalService } from '@components/modal/modal.service';
+import { ModalComponent } from '@components/modal/modal.component';
+import { SnackBarService } from '@shared/services/snackbar.service';
+import { JsonPipe } from '@angular/common';
 
 const MODULE_IMPORTS = [
   MatIconModule,
@@ -35,8 +42,12 @@ export class GridComponent<T> implements OnInit {
 
   dataSource = new MatTableDataSource<T>();
   valueToFilter = signal('');
+
   private readonly _sort = viewChild.required<MatSort>(MatSort);
   private readonly _paginator = viewChild.required<MatPaginator>(MatPaginator);
+  private readonly _contactSvc = inject(ContactService);
+  private readonly _modalSvc = inject(ModalService);
+  private readonly _snackBarSvc = inject(SnackBarService);
 
   constructor() {
     effect(
@@ -46,6 +57,10 @@ export class GridComponent<T> implements OnInit {
         } else {
           this.dataSource.filter = '';
         }
+
+        if (this.data()) {
+          this.dataSource.data = this.data();
+        }
       },
       { allowSignalWrites: true }
     );
@@ -54,5 +69,22 @@ export class GridComponent<T> implements OnInit {
     this.dataSource.data = this.data();
     this.dataSource.sort = this._sort();
     this.dataSource.paginator = this._paginator();
+  }
+
+  openEditForm(data: T): void {
+    this._modalSvc.openModal<ModalComponent, T>(ModalComponent, data, true);
+  }
+
+  selectedRow(data: T): void {
+    this.openEditForm(data);
+  }
+
+  deleteContact(id: string): void {
+    const confirmation = confirm(APP_CONSTANTS.MESSAGES.CONFIRMATION_PROMPT);
+
+    if (confirmation) {
+      this._contactSvc.deleteContact(id);
+      this._snackBarSvc.showSnackBar(APP_CONSTANTS.MESSAGES.CONTACT_DELETED);
+    }
   }
 }
